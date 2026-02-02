@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/pubsub/v2"
 	"gcp-pubsub-tui/pkg/utils"
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -16,12 +17,13 @@ import (
 type PubSubMsg *pubsub.Message
 
 type Model struct {
-	subName  string
-	messages []*pubsub.Message
-	msgChan  <-chan *pubsub.Message
-	err      error
-	width    int
-	height   int
+	subName   string
+	messages  []*pubsub.Message
+	msgChan   <-chan *pubsub.Message
+	err       error
+	width     int
+	height    int
+	viewport  viewport.Model
 }
 
 func NewModel(subName string, msgChan <-chan *pubsub.Message) Model {
@@ -29,6 +31,7 @@ func NewModel(subName string, msgChan <-chan *pubsub.Message) Model {
 		subName:  subName,
 		msgChan:  msgChan,
 		messages: []*pubsub.Message{},
+		viewport: viewport.New(0, 0),
 	}
 }
 
@@ -44,20 +47,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "c", "C":
 			m.messages = []*pubsub.Message{}
+			m.viewport.GotoTop()
+			return m, nil
+		case "up":
+			m.viewport.LineUp(1)
+			return m, nil
+		case "down":
+			m.viewport.LineDown(1)
 			return m, nil
 		}
 	case PubSubMsg:
 		m.messages = append(m.messages, msg)
-		// Keep last 50 messages to prevent memory issues and huge renders
-		if len(m.messages) > 50 {
-			m.messages = m.messages[len(m.messages)-50:]
+		// Keep last 100 messages
+		if len(m.messages) > 100 {
+			m.messages = m.messages[len(m.messages)-100:]
 		}
+		// Auto-scroll to bottom
+		m.viewport.GotoBottom()
 		return m, waitForMessage(m.msgChan)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height
-		// Adjust styles based on width if needed
-		messageBoxStyle.Width(msg.Width - 4) // simple adjustment
+		m.height = msg.Height - 4 // Reserve space for header + help
+		m.viewport.Width = m.width - 4
+		m.viewport.Height = m.height
 	}
 	return m, nil
 }
@@ -77,15 +89,10 @@ func (m Model) View() string {
 	// Header
 	header := headerStyle.Render(fmt.Sprintf("Pub/Sub Subscription: %s", m.subName))
 
-	// Messages
+	// Messages - build content OLDEST first (chronological order)
 	var content strings.Builder
 
-	// Render messages newest first
-	// We only render as many as reasonable.
-	// In a real TUI we'd use a Viewport, but for this simpler version we stack them.
-
-	count := 0
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := 0; i < len(m.messages); i++ {
 		msg := m.messages[i]
 
 		// ID & Time
@@ -126,23 +133,21 @@ func (m Model) View() string {
 		}
 
 		content.WriteString(messageBoxStyle.Render(body))
-		content.WriteString("\n")
-
-		count++
-		// Heuristic limit to avoid rendering too much off-screen text
-		if count > 10 {
-			break
-		}
+		content.WriteString("\n\n")
 	}
 
 	if len(m.messages) == 0 {
 		content.WriteString(subTitleStyle.Render("Waiting for messages..."))
 	}
 
+	m.viewport.SetContent(content.String())
+
+	help := helpStyle.Render("Press 'q' to quit • 'c' to clear • ↑/↓ to scroll")
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"\n",
-		content.String(),
-		helpStyle.Render("Press 'q' to quit • 'c' to clear messages"),
+		m.viewport.View(),
+		help,
 	)
 }

@@ -8,6 +8,7 @@ A professional, interactive Terminal User Interface (TUI) for subscribing to Goo
 *   **Visual Message Display**: Beautifully formatted messages with color-coded metadata.
 *   **JSON Pretty Printing**: Automatically formats JSON payloads for readability.
 *   **Real-time Streaming**: Streams messages using the official Google Cloud Pub/Sub client.
+*   **Chat-Style Scrolling**: Messages display chronologically with auto-scroll and manual navigation.
 *   **Graceful Shutdown**: Handles signals correctly.
 
 ## Installation
@@ -70,6 +71,8 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 *   **Main Dashboard**:
     *   `q` or `Ctrl+C`: Quit the application.
     *   `c`: Clear the message history.
+    *   `↑` / `↓` or `j` / `k`: Scroll up/down through messages.
+    *   Messages auto-scroll to bottom when new ones arrive.
 
 ## Configuration Guide
 
