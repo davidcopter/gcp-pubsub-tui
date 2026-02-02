@@ -2,11 +2,13 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"gcp-pubsub-tui/internal/client"
 )
 
@@ -17,7 +19,7 @@ func TestPubSubIntegration(t *testing.T) {
 
 	ctx := context.Background()
 	projID := "test-project"
-
+	
 	// Create raw client to setup topic/sub
 	rawClient, err := pubsub.NewClient(ctx, projID)
 	if err != nil {
@@ -27,27 +29,31 @@ func TestPubSubIntegration(t *testing.T) {
 
 	topicID := "test-topic"
 	subID := "test-sub"
+	
+	fullTopicName := fmt.Sprintf("projects/%s/topics/%s", projID, topicID)
+	fullSubName := fmt.Sprintf("projects/%s/subscriptions/%s", projID, subID)
 
 	// Cleanup (ignore errors if not exist)
-	rawClient.Topic(topicID).Delete(ctx)
-	rawClient.Subscription(subID).Delete(ctx)
+	rawClient.TopicAdminClient.DeleteTopic(ctx, &pubsubpb.DeleteTopicRequest{Topic: fullTopicName})
+	rawClient.SubscriptionAdminClient.DeleteSubscription(ctx, &pubsubpb.DeleteSubscriptionRequest{Subscription: fullSubName})
 
 	// Create Topic
-	topic, err := rawClient.CreateTopic(ctx, topicID)
+	_, err = rawClient.TopicAdminClient.CreateTopic(ctx, &pubsubpb.Topic{Name: fullTopicName})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create Sub
-	_, err = rawClient.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{
-		Topic: topic,
+	_, err = rawClient.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
+		Name: fullSubName,
+		Topic: fullTopicName,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Publish a message
-	res := topic.Publish(ctx, &pubsub.Message{
+	res := rawClient.Publisher(topicID).Publish(ctx, &pubsub.Message{
 		Data: []byte(`{"test":"data"}`),
 	})
 	_, err = res.Get(ctx)
@@ -69,7 +75,7 @@ func TestPubSubIntegration(t *testing.T) {
 	defer c.Close()
 
 	msgChan := make(chan *pubsub.Message)
-
+	
 	// Create a context with timeout for the subscriber
 	subCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

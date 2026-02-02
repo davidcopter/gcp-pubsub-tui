@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"gcp-pubsub-tui/pkg/utils"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

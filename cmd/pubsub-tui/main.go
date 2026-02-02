@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"gcp-pubsub-tui/internal/client"
