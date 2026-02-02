@@ -24,6 +24,20 @@ cd gcp-pubsub-tui
 go build -o pubsub-tui ./cmd/pubsub-tui
 ```
 
+### Quick Start (Setup Script)
+
+To automatically setup the binary for your system (detects OS/Arch, builds if necessary, and places `gcp-pubsub-tui` in the root):
+
+```bash
+./setup.sh
+```
+
+Then run:
+
+```bash
+./gcp-pubsub-tui -key /path/to/key.json
+```
+
 ### Cross-Platform Build
 
 To build binaries for multiple platforms (Linux, macOS, Windows), run the provided build script:
