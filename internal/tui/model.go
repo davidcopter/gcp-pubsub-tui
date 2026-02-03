@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"gcp-pubsub-tui/pkg/utils"
 
@@ -122,12 +121,21 @@ func (m Model) View() string {
 	// Messages - build content OLDEST first (chronological order)
 	var content strings.Builder
 
+	// Dynamic width for bubbles (e.g., 80% of viewport)
+	bubbleWidth := int(float64(m.viewport.Width) * 0.8)
+	if bubbleWidth < 40 {
+		bubbleWidth = m.viewport.Width - 4 // Fallback for small screens
+	}
+
 	for i := 0; i < len(m.messages); i++ {
 		msg := m.messages[i]
 
 		// ID & Time
 		id := idStyle.Render(fmt.Sprintf("ID: %s", msg.ID))
-		ts := timeStyle.Render(fmt.Sprintf("Time: %s", msg.PublishTime.Format(time.RFC3339)))
+		ts := timeStyle.Render(msg.PublishTime.Format("15:04:05")) // Compact time
+
+		// Header line: ID ... Time
+		headerLine := lipgloss.JoinHorizontal(lipgloss.Left, id, " ", ts)
 
 		// Attributes
 		var attrs string
@@ -148,13 +156,10 @@ func (m Model) View() string {
 
 		// Data
 		dataStr := utils.PrettyPrintJSON(msg.Data)
+		// dataBox is now inside the bubble, so maybe remove its border or keep it subtle
 		dataBox := dataBoxStyle.Render(dataContentStyle.Render(dataStr))
 
 		// Combine elements
-		// Header line: ID | Time
-		headerLine := lipgloss.JoinHorizontal(lipgloss.Left, id, "  ", ts)
-
-		// Body
 		var body string
 		if attrs != "" {
 			body = lipgloss.JoinVertical(lipgloss.Left, headerLine, attrs, dataBox)
@@ -162,15 +167,31 @@ func (m Model) View() string {
 			body = lipgloss.JoinVertical(lipgloss.Left, headerLine, dataBox)
 		}
 
-		content.WriteString(messageBoxStyle.Render(body))
-		content.WriteString("\n\n")
+		// Render bubble with dynamic width
+		bubble := bubbleStyle.Width(bubbleWidth).Render(body)
+		content.WriteString(bubble)
+		content.WriteString("\n")
 	}
 
 	if len(m.messages) == 0 {
 		content.WriteString(subTitleStyle.Render("Waiting for messages..."))
 	}
 
-	m.viewport.SetContent(content.String())
+	// Calculate total content height
+	renderedContent := content.String()
+	contentHeight := lipgloss.Height(renderedContent)
+
+	// Stick-to-Bottom Logic
+	// If content is shorter than viewport, pad with newlines at the TOP
+	if contentHeight < m.viewport.Height {
+		paddingLines := m.viewport.Height - contentHeight
+		if paddingLines > 0 {
+			padding := strings.Repeat("\n", paddingLines)
+			renderedContent = padding + renderedContent
+		}
+	}
+
+	m.viewport.SetContent(renderedContent)
 
 	// If a recent message requested auto-scroll, perform it now that
 	// the viewport content has been updated.
