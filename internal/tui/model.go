@@ -48,7 +48,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		s := msg.String()
 		switch {
-		case s == "q" || s == "ctrl+c" || msg.Type == tea.KeyCtrlC:
+		case s == "esc" || s == "ctrl+c" || msg.Type == tea.KeyCtrlC:
 			return m, tea.Quit
 		case s == "c" || s == "C":
 			m.messages = []*pubsub.Message{}
@@ -179,7 +179,7 @@ func (m Model) View() string {
 		m.shouldAutoScroll = false
 	}
 
-	help := helpStyle.Render("Press 'q' to quit • 'c' to clear • ↑/↓ to scroll")
+	help := helpStyle.Render("Press 'Esc' to quit • 'c' to clear • ↑/↓ to scroll")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,

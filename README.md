@@ -69,9 +69,10 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
     *   Enable/Disable Auto-Acknowledgment.
     *   Set Pull Interval (Simulated/Info).
 *   **Main Dashboard**:
-    *   `q` or `Ctrl+C`: Quit the application.
+    *   `Esc` or `Ctrl+C`: Quit the application.
     *   `c`: Clear the message history.
-    *   `↑` / `↓` or `j` / `k`: Scroll up/down through messages.
+
+## Configuration Guide  *   `↑` / `↓` or `j` / `k`: Scroll up/down through messages.
     *   Messages auto-scroll to bottom when new ones arrive.
 
 ## Configuration Guide
