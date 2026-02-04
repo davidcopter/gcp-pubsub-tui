@@ -30,16 +30,16 @@ go build -o pubsub-tui ./cmd/pubsub-tui
 To automatically setup the binary for your system (detects OS/Arch, builds if necessary, and places `gcp-pubsub-tui` in the root):
 
 ```bash
-./setup.sh
-```
-
-Then run:
-
-```bash
-./gcp-pubsub-tui -key /path/to/key.json
-```
-
-### Cross-Platform Build
+ ./setup.sh
+ ```
+ 
+ Then run:
+ 
+ ```bash
+ ./gcp-pubsub-tui --key /path/to/key.json
+ ```
+ 
+ ### Cross-Platform Build
 
 To build binaries for multiple platforms (Linux, macOS, Windows), run the provided build script:
 
@@ -55,7 +55,10 @@ You must provide a Google Cloud Service Account JSON key file.
 
 ```bash
 # Using flag
-./pubsub-tui -key /path/to/service-account.json
+./pubsub-tui --key /path/to/service-account.json
+
+# Optionally specify subscription to pre-fill the form
+./pubsub-tui --key /path/to/key.json --subscription my-sub
 
 # Using environment variable
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
