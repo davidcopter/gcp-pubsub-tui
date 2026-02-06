@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +15,18 @@ import (
 	"gcp-pubsub-tui/internal/tui"
 )
 
+const Version = "1.0.0"
+
 func main() {
+	// Check for version flag
+	versionFlag := flag.Bool("version", false, "Show version")
+	flag.Parse()
+	
+	if *versionFlag {
+		fmt.Printf("pubsub-tui version %s\n", Version)
+		os.Exit(0)
+	}
+	
 	// Setup file logging to avoid interfering with TUI
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
