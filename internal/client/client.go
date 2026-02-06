@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"google.golang.org/api/option"
 )
 
@@ -17,7 +18,7 @@ func NewClient(ctx context.Context, projectID string, keyPath string) (*PubSubCl
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
-
+	
 	client, err := pubsub.NewClient(ctx, projectID, option.WithCredentialsFile(keyPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pubsub client: %w", err)
@@ -27,24 +28,27 @@ func NewClient(ctx context.Context, projectID string, keyPath string) (*PubSubCl
 
 // Subscribe starts streaming messages from the subscription to the provided channel
 func (c *PubSubClient) Subscribe(ctx context.Context, subID string, autoAck bool, msgChan chan<- *pubsub.Message) error {
-	sub := c.client.Subscription(subID)
-
-	// Check if subscription exists
-	exists, err := sub.Exists(ctx)
+	// Check if subscription exists using SubscriptionAdminClient
+	// We need to construct the fully qualified name
+	fullSubName := fmt.Sprintf("projects/%s/subscriptions/%s", c.client.Project(), subID)
+	
+	_, err := c.client.SubscriptionAdminClient.GetSubscription(ctx, &pubsubpb.GetSubscriptionRequest{
+		Subscription: fullSubName,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to check subscription existence: %w", err)
-	}
-	if !exists {
-		return fmt.Errorf("subscription '%s' does not exist in project '%s'", subID, c.client.Project())
+		return fmt.Errorf("failed to check subscription existence (or sub does not exist): %w", err)
 	}
 
+	// Get subscriber client
+	sub := c.client.Subscriber(subID)
+	
 	// Start receiving messages
 	// We use the context to cancel the subscription
 	err = sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		if autoAck {
 			msg.Ack()
 		}
-
+		
 		// Non-blocking send or blocking?
 		// If we block, we might hold up the stream.
 		// Use a select to respect context cancellation.

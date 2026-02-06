@@ -12,21 +12,24 @@ import (
 type Config struct {
 	ServiceAccountPath string
 	ProjectID          string
+	SubscriptionID     string
 }
 
 // LoadConfig parses command line arguments and environment variables
 func LoadConfig() (*Config, error) {
 	var serviceAccountPath string
+	var subscriptionID string
 
 	// Check environment variable first
 	envPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 	// Parse command line flags
 	flag.StringVar(&serviceAccountPath, "key", envPath, "Path to Google Cloud Service Account JSON file")
+	flag.StringVar(&subscriptionID, "subscription", "", "Google Cloud Pub/Sub Subscription ID")
 	flag.Parse()
 
 	if serviceAccountPath == "" {
-		return nil, errors.New("service account path is required. Use -key flag or GOOGLE_APPLICATION_CREDENTIALS env var")
+		return nil, errors.New("service account path is required. Use --key flag or GOOGLE_APPLICATION_CREDENTIALS env var")
 	}
 
 	// Validate file exists and is valid JSON
@@ -38,6 +41,7 @@ func LoadConfig() (*Config, error) {
 	return &Config{
 		ServiceAccountPath: serviceAccountPath,
 		ProjectID:          projectID,
+		SubscriptionID:     subscriptionID,
 	}, nil
 }
 

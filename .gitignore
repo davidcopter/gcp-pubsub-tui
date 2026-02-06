@@ -1,0 +1,12 @@
+# Binaries
+/gcp-pubsub-tui
+/gcp-pubsub-tui.exe
+/dist/
+/debug.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store

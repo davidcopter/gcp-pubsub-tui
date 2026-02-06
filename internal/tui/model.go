@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
-	"cloud.google.com/go/pubsub"
 	"gcp-pubsub-tui/pkg/utils"
-	"github.com/charmbracelet/bubbletea"
+
+	"cloud.google.com/go/pubsub/v2"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -22,13 +23,18 @@ type Model struct {
 	err      error
 	width    int
 	height   int
+	viewport viewport.Model
+	// when true, the viewport should auto-scroll to bottom on next render
+	shouldAutoScroll bool
 }
 
 func NewModel(subName string, msgChan <-chan *pubsub.Message) Model {
 	return Model{
-		subName:  subName,
-		msgChan:  msgChan,
-		messages: []*pubsub.Message{},
+		subName:          subName,
+		msgChan:          msgChan,
+		messages:         []*pubsub.Message{},
+		viewport:         viewport.New(0, 0),
+		shouldAutoScroll: true,
 	}
 }
 
@@ -39,25 +45,60 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
+		s := msg.String()
+		switch {
+		case s == "esc" || s == "ctrl+c" || msg.Type == tea.KeyCtrlC:
 			return m, tea.Quit
-		case "c", "C":
+		case s == "c" || s == "C":
 			m.messages = []*pubsub.Message{}
+			m.viewport.GotoTop()
+			m.shouldAutoScroll = true
+			return m, nil
+		case s == "up" || msg.Type == tea.KeyUp || s == "k":
+			m.viewport.LineUp(1)
+			m.shouldAutoScroll = false
+			return m, nil
+		case s == "down" || msg.Type == tea.KeyDown || s == "j":
+			m.viewport.LineDown(1)
+			// If moving down, and we reach bottom, re-enable auto-scroll.
+			if m.viewport.AtBottom() {
+				m.shouldAutoScroll = true
+			} else {
+				m.shouldAutoScroll = false
+			}
+			return m, nil
+		case msg.Type == tea.KeyPgUp:
+			m.viewport.PageUp()
+			m.shouldAutoScroll = false
+			return m, nil
+		case msg.Type == tea.KeyPgDown:
+			m.viewport.PageDown()
+			if m.viewport.AtBottom() {
+				m.shouldAutoScroll = true
+			} else {
+				m.shouldAutoScroll = false
+			}
 			return m, nil
 		}
 	case PubSubMsg:
 		m.messages = append(m.messages, msg)
-		// Keep last 50 messages to prevent memory issues and huge renders
-		if len(m.messages) > 50 {
-			m.messages = m.messages[len(m.messages)-50:]
+		// Keep last 100 messages
+		if len(m.messages) > 100 {
+			m.messages = m.messages[len(m.messages)-100:]
+		}
+		// Auto-scroll to bottom only if viewport was already at bottom.
+		// We can't call GotoBottom() here because SetContent (in View)
+		// updates the viewport's internal lines. Instead, set a flag
+		// and perform the GotoBottom after SetContent during rendering.
+		if m.viewport.AtBottom() {
+			m.shouldAutoScroll = true
 		}
 		return m, waitForMessage(m.msgChan)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height
-		// Adjust styles based on width if needed
-		messageBoxStyle.Width(msg.Width - 4) // simple adjustment
+		m.height = msg.Height - 4 // Reserve space for header + help
+		m.viewport.Width = m.width - 4
+		m.viewport.Height = m.height
 	}
 	return m, nil
 }
@@ -77,20 +118,24 @@ func (m Model) View() string {
 	// Header
 	header := headerStyle.Render(fmt.Sprintf("Pub/Sub Subscription: %s", m.subName))
 
-	// Messages
+	// Messages - build content OLDEST first (chronological order)
 	var content strings.Builder
 
-	// Render messages newest first
-	// We only render as many as reasonable.
-	// In a real TUI we'd use a Viewport, but for this simpler version we stack them.
+	// Dynamic width for bubbles (e.g., 80% of viewport)
+	bubbleWidth := int(float64(m.viewport.Width) * 0.8)
+	if bubbleWidth < 40 {
+		bubbleWidth = m.viewport.Width - 4 // Fallback for small screens
+	}
 
-	count := 0
-	for i := len(m.messages) - 1; i >= 0; i-- {
+	for i := 0; i < len(m.messages); i++ {
 		msg := m.messages[i]
 
 		// ID & Time
 		id := idStyle.Render(fmt.Sprintf("ID: %s", msg.ID))
-		ts := timeStyle.Render(fmt.Sprintf("Time: %s", msg.PublishTime.Format(time.RFC3339)))
+		ts := timeStyle.Render(msg.PublishTime.Format("15:04:05")) // Compact time
+
+		// Header line: ID ... Time
+		headerLine := lipgloss.JoinHorizontal(lipgloss.Left, id, " ", ts)
 
 		// Attributes
 		var attrs string
@@ -111,13 +156,10 @@ func (m Model) View() string {
 
 		// Data
 		dataStr := utils.PrettyPrintJSON(msg.Data)
+		// dataBox is now inside the bubble, so maybe remove its border or keep it subtle
 		dataBox := dataBoxStyle.Render(dataContentStyle.Render(dataStr))
 
 		// Combine elements
-		// Header line: ID | Time
-		headerLine := lipgloss.JoinHorizontal(lipgloss.Left, id, "  ", ts)
-
-		// Body
 		var body string
 		if attrs != "" {
 			body = lipgloss.JoinVertical(lipgloss.Left, headerLine, attrs, dataBox)
@@ -125,24 +167,45 @@ func (m Model) View() string {
 			body = lipgloss.JoinVertical(lipgloss.Left, headerLine, dataBox)
 		}
 
-		content.WriteString(messageBoxStyle.Render(body))
+		// Render bubble with dynamic width
+		bubble := bubbleStyle.Width(bubbleWidth).Render(body)
+		content.WriteString(bubble)
 		content.WriteString("\n")
-
-		count++
-		// Heuristic limit to avoid rendering too much off-screen text
-		if count > 10 {
-			break
-		}
 	}
 
 	if len(m.messages) == 0 {
 		content.WriteString(subTitleStyle.Render("Waiting for messages..."))
 	}
 
+	// Calculate total content height
+	renderedContent := content.String()
+	contentHeight := lipgloss.Height(renderedContent)
+
+	// Stick-to-Bottom Logic
+	// If content is shorter than viewport, pad with newlines at the TOP
+	if contentHeight < m.viewport.Height {
+		paddingLines := m.viewport.Height - contentHeight
+		if paddingLines > 0 {
+			padding := strings.Repeat("\n", paddingLines)
+			renderedContent = padding + renderedContent
+		}
+	}
+
+	m.viewport.SetContent(renderedContent)
+
+	// If a recent message requested auto-scroll, perform it now that
+	// the viewport content has been updated.
+	if m.shouldAutoScroll {
+		m.viewport.GotoBottom()
+		m.shouldAutoScroll = false
+	}
+
+	help := helpStyle.Render("Press 'Esc' to quit • 'c' to clear • ↑/↓ to scroll")
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"\n",
-		content.String(),
-		helpStyle.Render("Press 'q' to quit • 'c' to clear messages"),
+		m.viewport.View(),
+		help,
 	)
 }

@@ -14,12 +14,29 @@ type SubscriptionOptions struct {
 	PullInterval   int // in seconds
 }
 
-func RunSetupForm() (*SubscriptionOptions, error) {
+func RunSetupForm(initialSubID string) (*SubscriptionOptions, error) {
 	var (
-		subID       string
-		autoAck     bool   = true
-		intervalStr string = "1"
+		subID        string = initialSubID
+		autoAck      bool   = true
+		intervalStr  string = "1"
 	)
+
+	// If subscription ID is already provided, skip the input step for it or pre-fill it
+	// For better UX, if provided via flag, we can either skip the form entirely if we had defaults for others,
+	// or just pre-fill. Let's pre-fill for now, but if the user wants fully non-interactive, 
+	// they would need more flags. 
+	// However, the request implies using the flag might skip the form or at least pre-fill.
+	// Let's assume if subID is provided, we still show form to confirm other options unless we want to be fully automatic.
+	// But usually CLI flags override prompts.
+	
+	// Let's just pre-fill. If you want to skip, we can check if subID != "" and return immediately with defaults.
+	if subID != "" {
+		// If subscription is provided, we can return immediately with defaults
+		// OR we can just pre-fill. The prompt says "Interactive prompt system", 
+		// but flags usually imply automation.
+		// Let's assume if flag is present, we use it. But we still need other params.
+		// Let's pre-fill the value in the form.
+	}
 
 	// Create the form
 	form := huh.NewForm(

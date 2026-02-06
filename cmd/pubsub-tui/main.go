@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"gcp-pubsub-tui/internal/client"
@@ -14,7 +15,18 @@ import (
 	"gcp-pubsub-tui/internal/tui"
 )
 
+const Version = "1.0.0"
+
 func main() {
+	// Check for version flag
+	versionFlag := flag.Bool("version", false, "Show version")
+	flag.Parse()
+	
+	if *versionFlag {
+		fmt.Printf("pubsub-tui version %s\n", Version)
+		os.Exit(0)
+	}
+	
 	// Setup file logging to avoid interfering with TUI
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
@@ -31,8 +43,20 @@ func main() {
 	}
 
 	// 2. Setup Form (Interactive)
-	// This runs before Bubble Tea takes over the full screen
-	opts, err := tui.RunSetupForm()
+	// If SubscriptionID is passed via flag, we can pre-fill or skip.
+	// For now, let's pass it to the form.
+	var opts *tui.SubscriptionOptions
+	if cfg.SubscriptionID != "" {
+		// If provided via flag, we could skip the form if we assume defaults for others.
+		// Or we can just run the form with the value pre-filled.
+		// Let's assume for a "polished" CLI, if I provide args, I might want to skip interaction
+		// IF all required args are present. Here we only have subscription.
+		// So let's run the form but with the value.
+		opts, err = tui.RunSetupForm(cfg.SubscriptionID)
+	} else {
+		opts, err = tui.RunSetupForm("")
+	}
+
 	if err != nil {
 		fmt.Printf("Setup aborted: %v\n", err)
 		os.Exit(1)
