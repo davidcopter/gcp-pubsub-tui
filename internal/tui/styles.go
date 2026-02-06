@@ -15,20 +15,22 @@ var (
 			MarginLeft(1)
 
 	// Message Box Styles
-	messageBoxStyle = lipgloss.NewStyle().
+	// Replaced with a "Chat Bubble" style
+	bubbleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("255")). // White
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("63")). // Purple-ish
 			Padding(0, 1).
-			MarginBottom(1).
-			Width(80)
+			MarginBottom(1) // Spacing between bubbles
 
 	// Content Styles
 	idStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("14")). // Bright Cyan
+		Foreground(lipgloss.Color("87")). // Cyan
 		Bold(true)
 
 	timeStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("11")) // Yellow
+			Foreground(lipgloss.Color("244")). // Grey
+			Italic(true)
 
 	attrKeyStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10")). // Green

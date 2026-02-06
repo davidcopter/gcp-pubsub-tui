@@ -8,6 +8,7 @@ A professional, interactive Terminal User Interface (TUI) for subscribing to Goo
 *   **Visual Message Display**: Beautifully formatted messages with color-coded metadata.
 *   **JSON Pretty Printing**: Automatically formats JSON payloads for readability.
 *   **Real-time Streaming**: Streams messages using the official Google Cloud Pub/Sub client.
+*   **Chat-Style Scrolling**: Messages display chronologically with auto-scroll and manual navigation.
 *   **Graceful Shutdown**: Handles signals correctly.
 
 ## Installation
@@ -29,16 +30,16 @@ go build -o pubsub-tui ./cmd/pubsub-tui
 To automatically setup the binary for your system (detects OS/Arch, builds if necessary, and places `gcp-pubsub-tui` in the root):
 
 ```bash
-./setup.sh
-```
-
-Then run:
-
-```bash
-./gcp-pubsub-tui -key /path/to/key.json
-```
-
-### Cross-Platform Build
+ ./setup.sh
+ ```
+ 
+ Then run:
+ 
+ ```bash
+ ./gcp-pubsub-tui --key /path/to/key.json
+ ```
+ 
+ ### Cross-Platform Build
 
 To build binaries for multiple platforms (Linux, macOS, Windows), run the provided build script:
 
@@ -54,7 +55,10 @@ You must provide a Google Cloud Service Account JSON key file.
 
 ```bash
 # Using flag
-./pubsub-tui -key /path/to/service-account.json
+./pubsub-tui --key /path/to/service-account.json
+
+# Optionally specify subscription to pre-fill the form
+./pubsub-tui --key /path/to/key.json --subscription my-sub
 
 # Using environment variable
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
@@ -68,8 +72,11 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
     *   Enable/Disable Auto-Acknowledgment.
     *   Set Pull Interval (Simulated/Info).
 *   **Main Dashboard**:
-    *   `q` or `Ctrl+C`: Quit the application.
+    *   `Esc` or `Ctrl+C`: Quit the application.
     *   `c`: Clear the message history.
+
+## Configuration Guide  *   `↑` / `↓` or `j` / `k`: Scroll up/down through messages.
+    *   Messages auto-scroll to bottom when new ones arrive.
 
 ## Configuration Guide
 
